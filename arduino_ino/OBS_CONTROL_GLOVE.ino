@@ -6,6 +6,10 @@
 
   PURPOSE: send out button counts through mqtt.
 
+  Features:
+    -send glove state as button total counts out over mqtt
+    -single and multi button press (B1+B2)
+
   WORK ON NEXT: allow for double click by playing with button debounce and button capture window
   
 */
@@ -14,6 +18,20 @@
 #include "cred.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <Adafruit_LSM6DSOX.h>
+
+// For SPI mode, we need a CS pin
+#define LSM_CS 10
+// For software-SPI mode we need SCK/MOSI/MISO pins
+#define LSM_SCK 13
+#define LSM_MISO 12
+#define LSM_MOSI 11
+
+Adafruit_LSM6DSOX sox;
+
+const float gyrocal[3]={0.00904999,-0.01169999,-0.00905}; // rads/s
+const float altgyrocal[3]={0.00904999,-0.01169999,-0.0035};; // rads/s
+const float magcal[3]={1.35999999,-22.63,69.08};  // utesla
 
 const int capacity = JSON_OBJECT_SIZE(15); 
 StaticJsonDocument<capacity> doc;
@@ -40,8 +58,8 @@ Button button13 = {19, 0, false};
 Button button14 = {18, 0, false};
 Button button15 = {5, 0, false};
 
-int button_debounce = 250;
-int button_double_delay = 300;
+int button_debounce = 210;
+int button_double_delay = 150;
 
 unsigned long Binterrupt_time = 0;
 unsigned long Blast_interrupt_time = 0;
@@ -231,11 +249,11 @@ char input;
 
 
 EspMQTTClient client(
-  SSID2,
-  PASSWORD2,
+  SSID1,
+  PASSWORD1,
   MQTTBROKER,  // MQTT Broker server ip
   "TestESP32",     // Client name that uniquely identify your device
-  1883              // The MQTT port, default to 1883. this line can be omitted
+  PORT
 );
 
 void setup()
@@ -274,6 +292,12 @@ void setup()
   
   Serial.begin(115200);
 
+  if (!sox.begin_I2C()) {
+    while (1) {
+      delay(10);
+    }
+  }
+
   // Optionnal functionnalities of EspMQTTClient : 
   client.enableDebuggingMessages(); // Enable debugging messages sent to serial output
   client.enableHTTPWebUpdater(); // Enable the web updater. User and password default to values of MQTTUsername and MQTTPassword. These can be overrited with enableHTTPWebUpdater("user", "password").
@@ -305,6 +329,7 @@ void onConnectionEstablished()
 
   // Publish a message to "mytopic/test"
   client.publish("controller_glove", "alive"); // You can activate the retain flag by setting the third parameter to true
+  
 
   // Execute delayed instructions
   //client.executeDelayed(5 * 1000, []() {
@@ -381,4 +406,30 @@ void button_handler(){
     }
   Blast_interrupt_time = Binterrupt_time;
   } 
+}
+
+void gesture_handler(){
+  sensors_event_t accel;
+  sensors_event_t gyro;
+  sensors_event_t temp;
+  sox.getEvent(&accel, &gyro, &temp);
+
+
+  /* Display the results (acceleration is measured in m/s^2) */
+  Serial.print(accel.acceleration.x,3);
+  Serial.print(',');
+  Serial.print(accel.acceleration.y,3);
+  Serial.print(',');
+  Serial.print(accel.acceleration.z,3);
+  Serial.print(',');
+
+  /* Display the results (rotation is measured in rad/s) */
+  Serial.print(gyro.gyro.x - gyrocal[0],3);
+  Serial.print(',');
+  Serial.print(gyro.gyro.y - gyrocal[1],3);
+  Serial.print(',');
+  Serial.print(gyro.gyro.z - gyrocal[2],3);
+
+  // Covert to json and send over mqtt!
+  
 }
