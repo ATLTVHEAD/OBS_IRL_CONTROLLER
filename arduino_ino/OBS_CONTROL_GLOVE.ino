@@ -1,14 +1,16 @@
-/*
+  /*
   OBS_MQTT_BRACER.ino
   WRITTEN: Nate Damen
   CONACT: nate.damen@gmail.com
-  DATE: 2/1/21.
+  DATE: 2/1/21
+  Update: 3/15/21
 
   PURPOSE: send out button counts through mqtt.
 
   Features:
     -send glove state as button total counts out over mqtt
     -single and multi button press (B1+B2)
+    -sends IMU data over mqtt every 41ms
 
   WORK ON NEXT: allow for double click by playing with button debounce and button capture window
   
@@ -35,6 +37,8 @@ const float magcal[3]={1.35999999,-22.63,69.08};  // utesla
 
 const int capacity = JSON_OBJECT_SIZE(15); 
 StaticJsonDocument<capacity> doc;
+
+StaticJsonDocument<capacity> doc2;
 
 struct Button {
   const uint8_t PIN;
@@ -63,6 +67,10 @@ int button_double_delay = 150;
 
 unsigned long Binterrupt_time = 0;
 unsigned long Blast_interrupt_time = 0;
+
+unsigned long accel_timer = 0;
+unsigned long last_accel_timer = 0;
+int accel_delay = 41;
 
 void IRAM_ATTR isr() {
   static unsigned long last_interrupt_time = 0;
@@ -246,7 +254,7 @@ void IRAM_ATTR isr15() {
 }
  
 char input;
-
+char imu_input;
 
 EspMQTTClient client(
   SSID1,
@@ -294,6 +302,7 @@ void setup()
 
   if (!sox.begin_I2C()) {
     while (1) {
+      Serial.println("stuck");
       delay(10);
     }
   }
@@ -329,7 +338,8 @@ void onConnectionEstablished()
 
   // Publish a message to "mytopic/test"
   client.publish("controller_glove", "alive"); // You can activate the retain flag by setting the third parameter to true
-  
+  // Publish a message to "mytopic/test"
+  client.publish("obs_glove/IMU", "start");
 
   // Execute delayed instructions
   //client.executeDelayed(5 * 1000, []() {
@@ -341,6 +351,7 @@ void loop()
 {
   client.loop(); 
   button_handler();
+  gesture_handler();
 }
 
 void button_handler(){
@@ -409,27 +420,32 @@ void button_handler(){
 }
 
 void gesture_handler(){
-  sensors_event_t accel;
-  sensors_event_t gyro;
-  sensors_event_t temp;
-  sox.getEvent(&accel, &gyro, &temp);
+  accel_timer = millis();
+  if(accel_timer - last_accel_timer > accel_delay){
+    sensors_event_t accel;
+    sensors_event_t gyro;
+    sensors_event_t temp;
+    sox.getEvent(&accel, &gyro, &temp);
 
 
-  /* Display the results (acceleration is measured in m/s^2) */
-  Serial.print(accel.acceleration.x,3);
-  Serial.print(',');
-  Serial.print(accel.acceleration.y,3);
-  Serial.print(',');
-  Serial.print(accel.acceleration.z,3);
-  Serial.print(',');
+    /* Display the results (acceleration is measured in m/s^2) */
+    doc2["accel_x"] = accel.acceleration.x;
+    doc2["accel_y"] = accel.acceleration.y;
+    doc2["accel_z"] = accel.acceleration.z;
 
-  /* Display the results (rotation is measured in rad/s) */
-  Serial.print(gyro.gyro.x - gyrocal[0],3);
-  Serial.print(',');
-  Serial.print(gyro.gyro.y - gyrocal[1],3);
-  Serial.print(',');
-  Serial.print(gyro.gyro.z - gyrocal[2],3);
+    /* Display the results (rotation is measured in rad/s) */
+    doc2["gyro_x"] = gyro.gyro.x - gyrocal[0];
+    doc2["gyro_y"] = gyro.gyro.y - gyrocal[1];
+    doc2["gyro_z"] = gyro.gyro.z - gyrocal[2];
 
-  // Covert to json and send over mqtt!
+    // Covert to json and send over mqtt!
+
+    char buf2[256];
+    size_t n = serializeJson(doc2, buf2);
+
+    client.publish("obs_glove/IMU", buf2);
+    last_accel_timer = accel_timer;
+  }
+  
   
 }
