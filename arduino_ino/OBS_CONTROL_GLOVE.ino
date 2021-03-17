@@ -3,7 +3,7 @@
   WRITTEN: Nate Damen
   CONACT: nate.damen@gmail.com
   DATE: 2/1/21
-  Update: 3/15/21
+  Update: 3/16/21
 
   PURPOSE: send out button counts through mqtt.
 
@@ -21,13 +21,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <Adafruit_LSM6DSOX.h>
-
-// For SPI mode, we need a CS pin
-#define LSM_CS 10
-// For software-SPI mode we need SCK/MOSI/MISO pins
-#define LSM_SCK 13
-#define LSM_MISO 12
-#define LSM_MOSI 11
 
 Adafruit_LSM6DSOX sox;
 
@@ -53,8 +46,8 @@ Button button4 = {33, 0, false};
 Button button5 = {15, 0, false};
 Button button6 = {32, 0, false};
 Button button7 = {14, 0, false};
-Button button8 = {22, 0, false};
-Button button9 = {23, 0, false};
+Button button8 = {26, 0, false};
+Button button9 = {25, 0, false};
 Button button10 = {21, 0, false};
 Button button11 = {17, 0, false};
 Button button12 = {16, 0, false};
@@ -299,14 +292,15 @@ void setup()
   attachInterrupt(button15.PIN, isr15, FALLING);
   
   Serial.begin(115200);
-
+  delay(100);
   if (!sox.begin_I2C()) {
     while (1) {
       Serial.println("stuck");
-      delay(10);
+      delay(20);
     }
   }
-
+  Serial.println("LSM6DSOX Found!");
+    
   // Optionnal functionnalities of EspMQTTClient : 
   client.enableDebuggingMessages(); // Enable debugging messages sent to serial output
   client.enableHTTPWebUpdater(); // Enable the web updater. User and password default to values of MQTTUsername and MQTTPassword. These can be overrited with enableHTTPWebUpdater("user", "password").
@@ -353,7 +347,7 @@ void loop()
   button_handler();
   gesture_handler();
 }
-
+  
 void button_handler(){
   Binterrupt_time = millis();
   if(Binterrupt_time - Blast_interrupt_time > button_double_delay){
