@@ -25,7 +25,7 @@
 Adafruit_LSM6DSOX sox;
 
 const float gyrocal[3]={0.00904999,-0.01169999,-0.00905}; // rads/s
-const float altgyrocal[3]={0.00904999,-0.01169999,-0.0035};; // rads/s
+const float altgyrocal[3]={0.00904999,-0.01169999,-0.0035}; // rads/s
 const float magcal[3]={1.35999999,-22.63,69.08};  // utesla
 
 const int capacity = JSON_OBJECT_SIZE(15); 
@@ -63,7 +63,7 @@ unsigned long Blast_interrupt_time = 0;
 
 unsigned long accel_timer = 0;
 unsigned long last_accel_timer = 0;
-int accel_delay = 41;
+int accel_delay = 16; //16~=60hz 41~=24hz
 
 void IRAM_ATTR isr() {
   static unsigned long last_interrupt_time = 0;
