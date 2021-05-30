@@ -55,7 +55,7 @@ Bounce * buttons = new Bounce[NUM_BUTTONS];
 
 unsigned long accel_timer = 0;
 unsigned long last_accel_timer = 0;
-int accel_delay = 16; //16~=60hz 41~=24hz
+int accel_delay = 8; //16~=60hz 41~=24hz
 
 
  
