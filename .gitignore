@@ -30,3 +30,5 @@
 *.exe
 *.out
 *.app
+arduino_ino/FauxTwiddlerGlove/cred.h
+arduino_ino/OBS_CONTROL_GLOVE/cred.h
